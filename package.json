@@ -31,8 +31,10 @@
     "@typescript-eslint/eslint-plugin": "^7.6.0",
     "@typescript-eslint/parser": "^7.6.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.6.2",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",
+    "postcss": "^8.5.32",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.2",
     "vite": "^5.2.8"
