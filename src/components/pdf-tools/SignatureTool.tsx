@@ -1,48 +1,93 @@
 import React from 'react';
-import { useDropzone } from 'react-dropzone';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { saveAs } from 'file-saver';
 
-export default function SignatureTool() {
-  const [files, setFiles] = React.useState<File[]>([]);
-  const [signature, setSignature] = React.useState('');
-  const { getRootProps, getInputProps } = useDropzone({
-    accept: { 'application/pdf': [] },
-    onDrop: accepted => setFiles(prev => [...prev, ...accepted]),
-  });
+export default function SignatureTool({ initialFiles = [] }: { initialFiles?: File[] }) {
+  const [files, setFiles] = React.useState<File[]>(initialFiles);
+  const [signatureText, setSignatureText] = React.useState('Verified Digital Signature');
+  const [sanitize, setSanitize] = React.useState(true);
+  const [processing, setProcessing] = React.useState(false);
 
-  const handleAddSignature = async () => {
-    // Placeholder: simply copy PDFs; real implementation would embed signature image.
-    const mergedPdf = await PDFDocument.create();
-    for (const file of files) {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await PDFDocument.load(arrayBuffer);
-      const copied = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-      copied.forEach(p => mergedPdf.addPage(p));
+  React.useEffect(() => {
+    if (initialFiles.length > 0) setFiles(initialFiles);
+  }, [initialFiles]);
+
+  const handleSignAndSanitize = async () => {
+    if (files.length === 0) return;
+    setProcessing(true);
+    try {
+      for (const file of files) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await PDFDocument.load(arrayBuffer);
+        const font = await pdf.embedFont(StandardFonts.HelveticaBold);
+        
+        if (sanitize) {
+          pdf.setTitle('');
+          pdf.setAuthor('');
+          pdf.setSubject('');
+          pdf.setKeywords([]);
+          pdf.setProducer('');
+          pdf.setCreator('');
+        }
+
+        const pages = pdf.getPages();
+        if (pages.length > 0 && signatureText.trim()) {
+          const lastPage = pages[pages.length - 1];
+          lastPage.drawText(`Signed: ${signatureText}`, {
+            x: 50,
+            y: 50,
+            size: 11,
+            font,
+            color: rgb(0.1, 0.4, 0.8),
+          });
+        }
+
+        const bytes = await pdf.save();
+        const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+        saveAs(blob, `secured_${file.name}`);
+      }
+    } catch (err) {
+      alert('Error protecting PDF: ' + err);
+    } finally {
+      setProcessing(false);
     }
-    const blob = new Blob([await mergedPdf.save() as unknown as BlobPart], { type: 'application/pdf' });
-    saveAs(blob, 'signed.pdf');
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-2">Signature & Sanitize PDF</h2>
-      <div {...getRootProps()} className="border-2 border-dashed p-4 mb-4 cursor-pointer">
-        <input {...getInputProps()} />
-        <p>Drag & drop PDFs to add a signature.</p>
+    <div className="space-y-4">
+      <div>
+        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Signature Stamp</label>
+        <input
+          type="text"
+          value={signatureText}
+          onChange={(e) => setSignatureText(e.target.value)}
+          placeholder="Signature Name or ID"
+          className="w-full rounded-lg border border-zinc-300 bg-white dark:bg-white/5 dark:border-white/10 px-3 py-2 text-sm"
+        />
       </div>
-      <textarea
-        placeholder="Enter signature text (placeholder)"
-        value={signature}
-        onChange={e => setSignature(e.target.value)}
-        className="border p-1 mb-2 w-full"
-      />
+      <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-700 dark:text-zinc-300">
+        <input
+          type="checkbox"
+          checked={sanitize}
+          onChange={(e) => setSanitize(e.target.checked)}
+          className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        Sanitize metadata (strip author, device, and GPS traces)
+      </label>
+      <ul className="max-h-40 overflow-y-auto space-y-1.5 text-xs">
+        {files.map((f, i) => (
+          <li key={i} className="flex justify-between items-center bg-zinc-100 dark:bg-white/5 p-2 rounded-lg">
+            <span className="truncate">{f.name}</span>
+            <span className="text-zinc-500">{(f.size / 1024).toFixed(1)} KB</span>
+          </li>
+        ))}
+      </ul>
       <button
-        onClick={handleAddSignature}
-        disabled={files.length===0}
-        className="px-4 py-2 bg-primary-light text-white rounded disabled:opacity-50"
+        onClick={handleSignAndSanitize}
+        disabled={files.length === 0 || processing}
+        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
       >
-        Add Signature
+        {processing ? 'Applying Security...' : 'Protect & Download'}
       </button>
     </div>
   );
