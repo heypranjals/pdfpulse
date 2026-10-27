@@ -9,7 +9,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
-  base: './', // for static export
+  base: '/pdfpulse/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,

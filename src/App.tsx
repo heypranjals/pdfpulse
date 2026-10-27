@@ -26,7 +26,7 @@ const tools = [
 
 export default function App() {
   return (
-    <Router>
+    <Router basename={import.meta.env.BASE_URL}>
       <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <header className="p-4 flex justify-between items-center shadow-md bg-primary-light dark:bg-primary-dark">
           <h1 className="text-2xl font-bold text-white">PDFPulse</h1>
